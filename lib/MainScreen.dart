@@ -1,9 +1,14 @@
 
+import 'dart:async';
+import 'dart:io';
+
+import 'package:audio_streams/audio_streams.dart';
 import 'package:fb_app/AppColors.dart';
 import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:mic_stream/mic_stream.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -27,6 +32,13 @@ class _MainScreenState extends State<MainScreen> {
   TextEditingController _portEditingController;
   FocusNode _ipAddressFocusNode = FocusNode();
 
+  Stream<List<int>> _androidMicStream = microphone(
+    sampleRate: 44100,
+    audioFormat: AudioFormat.ENCODING_PCM_16BIT,
+  );
+  AudioController _iosMicController = AudioController(CommonFormat.Int16, 44100, 1, true);
+  StreamSubscription<List<int>> _micStreamSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +49,27 @@ class _MainScreenState extends State<MainScreen> {
   void _init() async {
     _ipAddressEditingValue = TextEditingValue(text: _serverConfig.ipAddress);
     _portEditingValue = TextEditingValue(text: _serverConfig.port);
+
+    if (Platform.isAndroid) {
+      _micStreamSubscription = _androidMicStream.listen((samples) {
+        print(samples);
+      });
+    } else if (Platform.isIOS) {
+      await _iosMicController.intialize();
+      _micStreamSubscription = _iosMicController.startAudioStream().listen((samples) {
+        print(samples);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+
+    _micStreamSubscription?.cancel();
+    if (Platform.isIOS) {
+      _iosMicController.stopAudioStream();
+    }
   }
 
   @override

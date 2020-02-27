@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^0.1.2
+  mic_stream: ^0.2.0+2
+  audio_streams: ^1.0.0+2
 
 dev_dependencies:
   flutter_test:
