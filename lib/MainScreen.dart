@@ -4,9 +4,6 @@ import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_webrtc/media_stream.dart';
-import 'package:flutter_webrtc/rtc_peerconnection.dart';
-import 'package:flutter_webrtc/rtc_video_view.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -30,10 +27,6 @@ class _MainScreenState extends State<MainScreen> {
   TextEditingController _portEditingController;
   FocusNode _ipAddressFocusNode = FocusNode();
 
-  MediaStream _localStream;
-  RTCPeerConnection _peerConnection;
-  final _localRenderer = RTCVideoRenderer();
-
   @override
   void initState() {
     super.initState();
@@ -44,8 +37,6 @@ class _MainScreenState extends State<MainScreen> {
   void _init() async {
     _ipAddressEditingValue = TextEditingValue(text: _serverConfig.ipAddress);
     _portEditingValue = TextEditingValue(text: _serverConfig.port);
-
-    await _localRenderer.initialize();
   }
 
   @override
