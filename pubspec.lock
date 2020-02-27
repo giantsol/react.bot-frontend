@@ -95,6 +95,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.1.4"
+  logging:
+    dependency: transitive
+    description:
+      name: logging
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.11.4"
   matcher:
     dependency: transitive
     description:
@@ -156,6 +163,20 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.99"
+  socket_io_client:
+    dependency: "direct main"
+    description:
+      name: socket_io_client
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.9.8"
+  socket_io_common:
+    dependency: transitive
+    description:
+      name: socket_io_common
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.9.1"
   source_span:
     dependency: transitive
     description:
@@ -220,5 +241,5 @@ packages:
     source: hosted
     version: "3.5.0"
 sdks:
-  dart: ">=2.4.0 <3.0.0"
+  dart: ">=2.6.0 <3.0.0"
   flutter: ">=1.10.0 <2.0.0"

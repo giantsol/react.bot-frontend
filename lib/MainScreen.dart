@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:audio_streams/audio_streams.dart';
 import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
+import 'package:fb_app/entity/Connection.dart';
 import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,6 @@ class _MainScreenState extends State<MainScreen> {
   bool _isVideoTurnedOn = false;
   DataStatus _sentDataStatus = DataStatus.NONE;
   DataStatus _receivedDataStatus = DataStatus.NONE;
-  bool _isConnected = false;
   bool _isServerDialogShown = false;
   bool _isServerDialogLoopbackChecked = false;
 
@@ -41,6 +41,9 @@ class _MainScreenState extends State<MainScreen> {
   StreamSubscription<List<int>> _micStreamSubscription;
 
   CameraController _cameraController;
+  bool _isCameraStreaming = false;
+
+  Connection _connection;
 
   @override
   void initState() {
@@ -54,13 +57,17 @@ class _MainScreenState extends State<MainScreen> {
     _portEditingValue = TextEditingValue(text: _serverConfig.port);
 
     if (Platform.isAndroid) {
-      _micStreamSubscription = _androidMicStream.listen((samples) {
-        print(samples);
+      _micStreamSubscription = _androidMicStream.listen((List<int> samples) {
+        if (_isMicTurnedOn) {
+          _connection?.sendMicData(samples);
+        }
       });
     } else if (Platform.isIOS) {
       await _iosMicController.intialize();
-      _micStreamSubscription = _iosMicController.startAudioStream().listen((samples) {
-        print(samples);
+      _micStreamSubscription = _iosMicController.startAudioStream().listen((List<int> samples) {
+        if (_isMicTurnedOn) {
+          _connection?.sendMicData(samples);
+        }
       });
     }
 
@@ -68,10 +75,6 @@ class _MainScreenState extends State<MainScreen> {
     final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front);
     _cameraController = CameraController(selfieCamera, ResolutionPreset.medium, enableAudio: false);
     await _cameraController.initialize().then((_) async {
-      await _cameraController.startImageStream((image) {
-        print(image);
-      });
-
       if (mounted) {
         setState(() { });
       }
@@ -89,10 +92,23 @@ class _MainScreenState extends State<MainScreen> {
 
     _cameraController.stopImageStream();
     _cameraController.dispose();
+    _isCameraStreaming = false;
+
+    _disconnect();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isVideoTurnedOn && !_isCameraStreaming && _cameraController.value.isInitialized) {
+      _cameraController.startImageStream((image) {
+        _connection?.sendCameraData(image.planes.map((plane) => plane.bytes).toList());
+      });
+      _isCameraStreaming = true;
+    } else if (!_isVideoTurnedOn && _isCameraStreaming) {
+      _cameraController.stopImageStream();
+      _isCameraStreaming = false;
+    }
+
     return WillPopScope(
       onWillPop: () async => !_handleBackPress(),
       child: Scaffold(
@@ -143,12 +159,8 @@ class _MainScreenState extends State<MainScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 32),
                       child: AspectRatio(
                         aspectRatio: 4.0 / 3.0,
-                        child: _isVideoTurnedOn ? Center(
-                          child: AspectRatio(
-                            aspectRatio: _cameraController.value.aspectRatio,
-                            child: CameraPreview(_cameraController),
-                          ),
-                        ) : Container(
+                        child: _isVideoTurnedOn ? CameraPreview(_cameraController)
+                          : Container(
                           color: AppColors.BACKGROUND_GREY,
                           alignment: Alignment.center,
                           child: Text(
@@ -314,7 +326,7 @@ class _MainScreenState extends State<MainScreen> {
                             children: [
                               Center(
                                 child: Text(
-                                  _sentDataStatus.value,
+                                  _sentDataStatus.getValueString(),
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -335,7 +347,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               Center(
                                 child: Text(
-                                  _receivedDataStatus.value,
+                                  _receivedDataStatus.getValueString(),
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -354,7 +366,7 @@ class _MainScreenState extends State<MainScreen> {
                       child: Center(
                         child: Material(
                           borderRadius: BorderRadius.all(Radius.circular(24)),
-                          color: _isConnected ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+                          color: _connection != null ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
                           child: InkWell(
                             borderRadius: BorderRadius.all(Radius.circular(24)),
                             onTap: _onConnectButtonClicked,
@@ -373,9 +385,9 @@ class _MainScreenState extends State<MainScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.all(14),
                                 child: Text(
-                                  _isConnected ? 'Disconnect' : 'Connect',
+                                  _connection != null ? 'Disconnect' : 'Connect',
                                   style: TextStyle(
-                                    color: _isConnected ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
+                                    color: _connection != null ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
                                     fontSize: 12,
                                   ),
                                   textAlign: TextAlign.center,
@@ -576,15 +588,52 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  void _onVideoIconClicked() {
+  void _onVideoIconClicked() async {
     setState(() {
       _isVideoTurnedOn = !_isVideoTurnedOn;
     });
   }
 
   void _onConnectButtonClicked() {
+    if (_connection == null) {
+      _connect();
+    } else {
+      _disconnect();
+    }
+  }
+
+  void _connect() {
+    if (_serverConfig.isLoopback()) {
+      _connection = LoopbackConnection();
+    } else {
+      _connection = ServerConnection(_serverConfig);
+    }
+
+    _connection.onDataSent((sentData) {
+      setState(() {
+        _sentDataStatus = _sentDataStatus.buildNew(
+          value: sentData,
+        );
+      });
+    });
+    _connection.onDataReceived((receivedData) {
+      setState(() {
+        _receivedDataStatus = _receivedDataStatus.buildNew(
+          value: receivedData,
+        );
+      });
+    });
+
+    setState(() { });
+  }
+
+  void _disconnect() {
+    _connection?.dispose();
+    _connection = null;
+
     setState(() {
-      _isConnected = !_isConnected;
+      _sentDataStatus = DataStatus.NONE;
+      _receivedDataStatus = DataStatus.NONE;
     });
   }
 
@@ -607,6 +656,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onServerDialogOkClicked() {
+    _disconnect();
+
     setState(() {
       if (_isServerDialogLoopbackChecked) {
         _serverConfig = ServerConfig.LOOPBACK;

@@ -4,7 +4,7 @@ class DataStatus {
 
   final int accBytes;
   final int realtimeBytes;
-  final String value;
+  final dynamic value;
 
   const DataStatus(this.accBytes, this.realtimeBytes, this.value);
 
@@ -14,5 +14,26 @@ class DataStatus {
 
   String getRealtimeBytesString() {
     return realtimeBytes.toString();
+  }
+
+  String getValueString() {
+    final s = value.toString();
+    if (s.length > 10) {
+      return s.substring(10);
+    } else {
+      return s;
+    }
+  }
+
+  DataStatus buildNew({
+    int accBytes,
+    int realtimeBytes,
+    dynamic value,
+  }) {
+    return DataStatus(
+      accBytes ?? this.accBytes,
+      realtimeBytes ?? this.realtimeBytes,
+      value ?? this.value,
+    );
   }
 }

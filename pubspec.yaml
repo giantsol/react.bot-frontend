@@ -4,7 +4,7 @@ description: App for Facebook hackerthon
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">=2.6.0 <3.0.0"
 
 dependencies:
   flutter:
@@ -14,6 +14,7 @@ dependencies:
   mic_stream: ^0.2.0+2
   audio_streams: ^1.0.0+2
   camera: ^0.5.7+4
+  socket_io_client: ^0.9.8
 
 dev_dependencies:
   flutter_test:
