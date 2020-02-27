@@ -4,6 +4,9 @@ import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_webrtc/media_stream.dart';
+import 'package:flutter_webrtc/rtc_peerconnection.dart';
+import 'package:flutter_webrtc/rtc_video_view.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -12,27 +15,37 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
 
-  ServerConfig serverConfig = ServerConfig.LOOPBACK;
-  bool isMicTurnedOn = false;
-  bool isVideoTurnedOn = false;
-  DataStatus sentDataStatus = DataStatus.NONE;
-  DataStatus receivedDataStatus = DataStatus.NONE;
-  bool isConnected = false;
-  bool isServerDialogShown = false;
-  bool isServerDialogLoopbackChecked = false;
+  ServerConfig _serverConfig = ServerConfig.LOOPBACK;
+  bool _isMicTurnedOn = false;
+  bool _isVideoTurnedOn = false;
+  DataStatus _sentDataStatus = DataStatus.NONE;
+  DataStatus _receivedDataStatus = DataStatus.NONE;
+  bool _isConnected = false;
+  bool _isServerDialogShown = false;
+  bool _isServerDialogLoopbackChecked = false;
 
-  TextEditingValue ipAddressEditingValue;
-  TextEditingValue portEditingValue;
-  TextEditingController ipAddressEditingController;
-  TextEditingController portEditingController;
+  TextEditingValue _ipAddressEditingValue;
+  TextEditingValue _portEditingValue;
+  TextEditingController _ipAddressEditingController;
+  TextEditingController _portEditingController;
+  FocusNode _ipAddressFocusNode = FocusNode();
 
-  FocusNode ipAddresssFocusNode = FocusNode();
+  MediaStream _localStream;
+  RTCPeerConnection _peerConnection;
+  final _localRenderer = RTCVideoRenderer();
 
   @override
   void initState() {
     super.initState();
-    ipAddressEditingValue = TextEditingValue(text: serverConfig.ipAddress);
-    portEditingValue = TextEditingValue(text: serverConfig.port);
+
+    _init();
+  }
+
+  void _init() async {
+    _ipAddressEditingValue = TextEditingValue(text: _serverConfig.ipAddress);
+    _portEditingValue = TextEditingValue(text: _serverConfig.port);
+
+    await _localRenderer.initialize();
   }
 
   @override
@@ -68,8 +81,8 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               const SizedBox(height: 4,),
                               Text(
-                                serverConfig.isLoopback() ? 'Loopback'
-                                  : '${serverConfig.ipAddress}:${serverConfig.port}',
+                                _serverConfig.isLoopback() ? 'Loopback'
+                                  : '${_serverConfig.ipAddress}:${_serverConfig.port}',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: AppColors.PRIMARY,
@@ -115,11 +128,11 @@ class _MainScreenState extends State<MainScreen> {
                               height: 28,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: isMicTurnedOn ? AppColors.PRIMARY : AppColors.BACKGROUND_GREY,
+                                color: _isMicTurnedOn ? AppColors.PRIMARY : AppColors.BACKGROUND_GREY,
                                 shape: BoxShape.circle,
                               ),
                               child: Image.asset(
-                                isMicTurnedOn ? 'assets/ic_mic_on.png' : 'assets/ic_mic_off.png',
+                                _isMicTurnedOn ? 'assets/ic_mic_on.png' : 'assets/ic_mic_off.png',
                               ),
                             )
                           ),
@@ -134,11 +147,11 @@ class _MainScreenState extends State<MainScreen> {
                               height: 28,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: isVideoTurnedOn ? AppColors.PRIMARY : AppColors.BACKGROUND_GREY,
+                                color: _isVideoTurnedOn ? AppColors.PRIMARY : AppColors.BACKGROUND_GREY,
                                 shape: BoxShape.circle,
                               ),
                               child: Image.asset(
-                                isVideoTurnedOn ? 'assets/ic_video_on.png' : 'assets/ic_video_off.png',
+                                _isVideoTurnedOn ? 'assets/ic_video_on.png' : 'assets/ic_video_off.png',
                               ),
                             )
                           ),
@@ -187,7 +200,7 @@ class _MainScreenState extends State<MainScreen> {
                             children: [
                               Center(
                                 child: Text(
-                                  sentDataStatus.getAccBytesString(),
+                                  _sentDataStatus.getAccBytesString(),
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -206,7 +219,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               Center(
                                 child: Text(
-                                  receivedDataStatus.getAccBytesString(),
+                                  _receivedDataStatus.getAccBytesString(),
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -220,7 +233,7 @@ class _MainScreenState extends State<MainScreen> {
                             children: [
                               Center(
                                 child: Text(
-                                  sentDataStatus.getRealtimeBytesString(),
+                                  _sentDataStatus.getRealtimeBytesString(),
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -239,7 +252,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               Center(
                                 child: Text(
-                                  receivedDataStatus.getRealtimeBytesString(),
+                                  _receivedDataStatus.getRealtimeBytesString(),
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -253,7 +266,7 @@ class _MainScreenState extends State<MainScreen> {
                             children: [
                               Center(
                                 child: Text(
-                                  sentDataStatus.value,
+                                  _sentDataStatus.value,
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -274,7 +287,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               Center(
                                 child: Text(
-                                  receivedDataStatus.value,
+                                  _receivedDataStatus.value,
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: AppColors.PRIMARY,
@@ -293,7 +306,7 @@ class _MainScreenState extends State<MainScreen> {
                       child: Center(
                         child: Material(
                           borderRadius: BorderRadius.all(Radius.circular(24)),
-                          color: isConnected ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+                          color: _isConnected ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
                           child: InkWell(
                             borderRadius: BorderRadius.all(Radius.circular(24)),
                             onTap: _onConnectButtonClicked,
@@ -312,9 +325,9 @@ class _MainScreenState extends State<MainScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.all(14),
                                 child: Text(
-                                  isConnected ? 'Disconnect' : 'Connect',
+                                  _isConnected ? 'Disconnect' : 'Connect',
                                   style: TextStyle(
-                                    color: isConnected ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
+                                    color: _isConnected ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
                                     fontSize: 12,
                                   ),
                                   textAlign: TextAlign.center,
@@ -329,11 +342,11 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               ),
               // Scrim
-              isServerDialogShown ? Container(
+              _isServerDialogShown ? Container(
                 color: AppColors.SCRIM,
               ) : const SizedBox.shrink(),
               // Server Dialog
-              isServerDialogShown ? Center(
+              _isServerDialogShown ? Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Container(
@@ -366,17 +379,17 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                         const SizedBox(height: 2),
                         TextField(
-                          focusNode: ipAddresssFocusNode,
-                          controller: ipAddressEditingController,
+                          focusNode: _ipAddressFocusNode,
+                          controller: _ipAddressEditingController,
                           style: TextStyle(
                             fontSize: 16,
-                            color: isServerDialogLoopbackChecked ? AppColors.TEXT_BLACK_LIGHT
+                            color: _isServerDialogLoopbackChecked ? AppColors.TEXT_BLACK_LIGHT
                               : AppColors.TEXT_BLACK,
                           ),
                           decoration: null,
                           cursorColor: AppColors.TEXT_BLACK,
                           autofocus: true,
-                          enabled: !isServerDialogLoopbackChecked,
+                          enabled: !_isServerDialogLoopbackChecked,
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -389,21 +402,21 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                         const SizedBox(height: 2,),
                         TextField(
-                          controller: portEditingController,
+                          controller: _portEditingController,
                           style: TextStyle(
                             fontSize: 16,
-                            color: isServerDialogLoopbackChecked ? AppColors.TEXT_BLACK_LIGHT
+                            color: _isServerDialogLoopbackChecked ? AppColors.TEXT_BLACK_LIGHT
                               : AppColors.TEXT_BLACK,
                           ),
                           decoration: null,
                           cursorColor: AppColors.TEXT_BLACK,
-                          enabled: !isServerDialogLoopbackChecked,
+                          enabled: !_isServerDialogLoopbackChecked,
                         ),
                         const SizedBox(height: 8,),
                         Row(
                           children: <Widget>[
                             Checkbox(
-                              value: isServerDialogLoopbackChecked,
+                              value: _isServerDialogLoopbackChecked,
                               onChanged: _onServerDialogLoopbackCheckChanged,
                             ),
                             Text(
@@ -490,7 +503,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   bool _handleBackPress() {
-    if (isServerDialogShown) {
+    if (_isServerDialogShown) {
       _onServerDialogCancelClicked();
       return true;
     }
@@ -500,40 +513,40 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onServerBoxClicked() {
     setState(() {
-      isServerDialogLoopbackChecked = serverConfig.isLoopback();
-      ipAddressEditingValue = ipAddressEditingValue.copyWith(text: serverConfig.ipAddress);
-      portEditingValue = portEditingValue.copyWith(text: serverConfig.port);
-      ipAddressEditingController = TextEditingController.fromValue(ipAddressEditingValue);
-      portEditingController = TextEditingController.fromValue(portEditingValue);
-      isServerDialogShown = true;
+      _isServerDialogLoopbackChecked = _serverConfig.isLoopback();
+      _ipAddressEditingValue = _ipAddressEditingValue.copyWith(text: _serverConfig.ipAddress);
+      _portEditingValue = _portEditingValue.copyWith(text: _serverConfig.port);
+      _ipAddressEditingController = TextEditingController.fromValue(_ipAddressEditingValue);
+      _portEditingController = TextEditingController.fromValue(_portEditingValue);
+      _isServerDialogShown = true;
     });
   }
 
   void _onMicIconClicked() {
     setState(() {
-      isMicTurnedOn = !isMicTurnedOn;
+      _isMicTurnedOn = !_isMicTurnedOn;
     });
   }
 
   void _onVideoIconClicked() {
     setState(() {
-      isVideoTurnedOn = !isVideoTurnedOn;
+      _isVideoTurnedOn = !_isVideoTurnedOn;
     });
   }
 
   void _onConnectButtonClicked() {
     setState(() {
-      isConnected = !isConnected;
+      _isConnected = !_isConnected;
     });
   }
 
   void _onServerDialogLoopbackCheckChanged(bool value) {
     setState(() {
-      isServerDialogLoopbackChecked = !isServerDialogLoopbackChecked;
+      _isServerDialogLoopbackChecked = !_isServerDialogLoopbackChecked;
 
       if (!value) {
         WidgetsBinding.instance.addPostFrameCallback((d) {
-          ipAddresssFocusNode.requestFocus();
+          _ipAddressFocusNode.requestFocus();
         });
       }
     });
@@ -541,22 +554,22 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onServerDialogCancelClicked() {
     setState(() {
-      isServerDialogShown = false;
+      _isServerDialogShown = false;
     });
   }
 
   void _onServerDialogOkClicked() {
     setState(() {
-      if (isServerDialogLoopbackChecked) {
-        serverConfig = ServerConfig.LOOPBACK;
+      if (_isServerDialogLoopbackChecked) {
+        _serverConfig = ServerConfig.LOOPBACK;
       } else {
-        serverConfig = ServerConfig(
-          ipAddressEditingController.text,
-          portEditingController.text,
+        _serverConfig = ServerConfig(
+          _ipAddressEditingController.text,
+          _portEditingController.text,
         );
       }
 
-      isServerDialogShown = false;
+      _isServerDialogShown = false;
     });
   }
 
