@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_streams/audio_streams.dart';
+import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
 import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
@@ -39,6 +40,8 @@ class _MainScreenState extends State<MainScreen> {
   AudioController _iosMicController = AudioController(CommonFormat.Int16, 44100, 1, true);
   StreamSubscription<List<int>> _micStreamSubscription;
 
+  CameraController _cameraController;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +63,19 @@ class _MainScreenState extends State<MainScreen> {
         print(samples);
       });
     }
+
+    final _cameras = await availableCameras();
+    final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front);
+    _cameraController = CameraController(selfieCamera, ResolutionPreset.medium, enableAudio: false);
+    await _cameraController.initialize().then((_) async {
+      await _cameraController.startImageStream((image) {
+        print(image);
+      });
+
+      if (mounted) {
+        setState(() { });
+      }
+    });
   }
 
   @override
@@ -70,6 +86,9 @@ class _MainScreenState extends State<MainScreen> {
     if (Platform.isIOS) {
       _iosMicController.stopAudioStream();
     }
+
+    _cameraController.stopImageStream();
+    _cameraController.dispose();
   }
 
   @override
@@ -119,12 +138,17 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     ),
                     const SizedBox(height: 28,),
-                    // No Video box
+                    // Video box
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
                       child: AspectRatio(
                         aspectRatio: 4.0 / 3.0,
-                        child: Container(
+                        child: _isVideoTurnedOn ? Center(
+                          child: AspectRatio(
+                            aspectRatio: _cameraController.value.aspectRatio,
+                            child: CameraPreview(_cameraController),
+                          ),
+                        ) : Container(
                           color: AppColors.BACKGROUND_GREY,
                           alignment: Alignment.center,
                           child: Text(
