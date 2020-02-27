@@ -21,6 +21,8 @@ class App extends StatelessWidget {
     return MaterialApp(
       title: 'FB App',
       theme: ThemeData(
+        primaryColor: AppColors.PRIMARY,
+        accentColor: AppColors.PRIMARY,
         canvasColor: AppColors.BACKGROUND_WHITE,
         splashColor: AppColors.RIPPLE,
         textTheme: TextTheme(
@@ -39,7 +41,6 @@ class App extends StatelessWidget {
         return widget;
       },
       home: MainScreen(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
