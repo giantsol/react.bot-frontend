@@ -15,6 +15,7 @@ dependencies:
   audio_streams: ^1.0.0+2
   camera: ^0.5.7+4
   socket_io_client: ^0.9.8
+  shared_preferences: ^0.5.6+2
 
 dev_dependencies:
   flutter_test:

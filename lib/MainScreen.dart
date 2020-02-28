@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:audio_streams/audio_streams.dart';
 import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
+import 'package:fb_app/AppPreferences.dart';
 import 'package:fb_app/entity/Connection.dart';
 import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
@@ -51,6 +52,13 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _init() async {
+    final savedIpAddress = await AppPreferences.getIpAddress();
+    final savedPort = await AppPreferences.getPort();
+    _serverConfig = ServerConfig(savedIpAddress, savedPort);
+
+    _isMicTurnedOn = await AppPreferences.getMicEnabled();
+    _isVideoTurnedOn = await AppPreferences.getVideoEnabled();
+
     _ipAddressEditingValue = TextEditingValue(text: _serverConfig.ipAddress);
     _portEditingValue = TextEditingValue(text: _serverConfig.port);
 
@@ -75,6 +83,7 @@ class _MainScreenState extends State<MainScreen> {
     final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front);
     _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
     await _cameraController.initialize();
+
     if (mounted) {
       setState(() { });
     }
@@ -200,12 +209,14 @@ class _MainScreenState extends State<MainScreen> {
   void _onMicIconClicked() {
     setState(() {
       _isMicTurnedOn = !_isMicTurnedOn;
+      AppPreferences.setMicEnabled(_isMicTurnedOn);
     });
   }
 
   void _onVideoIconClicked() async {
     setState(() {
       _isVideoTurnedOn = !_isVideoTurnedOn;
+      AppPreferences.setVideoEnabled(_isMicTurnedOn);
     });
   }
 
@@ -284,6 +295,9 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       _isServerDialogShown = false;
+
+      AppPreferences.setIpAddress(_serverConfig.ipAddress);
+      AppPreferences.setPort(_serverConfig.port);
     });
   }
 
