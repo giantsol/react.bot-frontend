@@ -7,7 +7,6 @@ import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
 import 'package:fb_app/AppPreferences.dart';
 import 'package:fb_app/entity/Connection.dart';
-import 'package:fb_app/entity/DataStatus.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -21,12 +20,9 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
 
   ServerConfig _serverConfig = ServerConfig.LOOPBACK;
-  bool _isMicTurnedOn = false;
   bool _isVideoTurnedOn = false;
-  DataStatus _sentDataStatus = DataStatus.NONE;
-  DataStatus _receivedDataStatus = DataStatus.NONE;
   bool _isServerDialogShown = false;
-  bool _isServerDialogLoopbackChecked = false;
+  bool _isServerDialogVideoChecked = false;
 
   TextEditingValue _ipAddressEditingValue;
   TextEditingValue _portEditingValue;
@@ -56,26 +52,21 @@ class _MainScreenState extends State<MainScreen> {
     final savedPort = await AppPreferences.getPort();
     _serverConfig = ServerConfig(savedIpAddress, savedPort);
 
-    _isMicTurnedOn = await AppPreferences.getMicEnabled();
     _isVideoTurnedOn = await AppPreferences.getVideoEnabled();
 
     _ipAddressEditingValue = TextEditingValue(text: _serverConfig.ipAddress);
     _portEditingValue = TextEditingValue(text: _serverConfig.port);
 
-    // Due to the bugs of these libraries, we begin mic streaming regardless of _isMicTurnedOn flag
-    // but send mic data only when _isMicTurnedOn is true
+    // Due to the bugs of these libraries, we begin mic streaming right away
+    // even though we haven't connected yet.
     if (Platform.isAndroid) {
       _micStreamSubscription = _androidMicStream.listen((List<int> samples) {
-        if (_isMicTurnedOn) {
-          _connection?.sendMicData(samples);
-        }
+        _connection?.sendMicData(samples);
       });
     } else if (Platform.isIOS) {
       await _iosMicController.intialize();
       _micStreamSubscription = _iosMicController.startAudioStream().listen((List<int> samples) {
-        if (_isMicTurnedOn) {
-          _connection?.sendMicData(samples);
-        }
+        _connection?.sendMicData(samples);
       });
     }
 
@@ -138,25 +129,6 @@ class _MainScreenState extends State<MainScreen> {
                       cameraController: _cameraController,
                     ),
                     const SizedBox(height: 10,),
-                    // Mic and Video buttons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        _MicButton(
-                          onTap: _onMicIconClicked,
-                          isMicTurnedOn: _isMicTurnedOn,
-                        ),
-                        _VideoButton(
-                          onTap: _onVideoIconClicked,
-                          isVideoTurnedOn: _isVideoTurnedOn,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10,),
-                    _DataStatusTable(
-                      sentDataStatus: _sentDataStatus,
-                      receivedDataStatus: _receivedDataStatus,
-                    ),
                     _ConnectButton(
                       connection: _connection,
                       onTap: _onConnectButtonClicked,
@@ -170,10 +142,10 @@ class _MainScreenState extends State<MainScreen> {
               // Server Dialog
               _isServerDialogShown ? _ServerDialog(
                 ipAddressFocusNode: _ipAddressFocusNode,
-                isServerDialogLoopbackChecked: _isServerDialogLoopbackChecked,
+                isServerDialogVideoChecked: _isServerDialogVideoChecked,
                 ipAddressEditingController: _ipAddressEditingController,
                 portEditingController: _portEditingController,
-                onLoopbackCheckboxChanged: _onServerDialogLoopbackCheckChanged,
+                onVideoCheckboxChanged: _onServerDialogVideoCheckChanged,
                 onCancelClicked: _onServerDialogCancelClicked,
                 onOkClicked: _onServerDialogOkClicked,
               ) : const SizedBox.shrink(),
@@ -195,7 +167,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onServerBoxClicked() {
     setState(() {
-      _isServerDialogLoopbackChecked = _serverConfig.isLoopback();
+      _isServerDialogVideoChecked = _isVideoTurnedOn;
 
       _ipAddressEditingValue = _ipAddressEditingValue.copyWith(text: _serverConfig.ipAddress);
       _portEditingValue = _portEditingValue.copyWith(text: _serverConfig.port);
@@ -203,20 +175,6 @@ class _MainScreenState extends State<MainScreen> {
       _portEditingController = TextEditingController.fromValue(_portEditingValue);
 
       _isServerDialogShown = true;
-    });
-  }
-
-  void _onMicIconClicked() {
-    setState(() {
-      _isMicTurnedOn = !_isMicTurnedOn;
-      AppPreferences.setMicEnabled(_isMicTurnedOn);
-    });
-  }
-
-  void _onVideoIconClicked() async {
-    setState(() {
-      _isVideoTurnedOn = !_isVideoTurnedOn;
-      AppPreferences.setVideoEnabled(_isMicTurnedOn);
     });
   }
 
@@ -237,16 +195,16 @@ class _MainScreenState extends State<MainScreen> {
 
     _connection.onDataSent((sentData) {
       setState(() {
-        _sentDataStatus = _sentDataStatus.buildNew(
-          value: sentData,
-        );
+//        _sentDataStatus = _sentDataStatus.buildNew(
+//          value: sentData,
+//        );
       });
     });
     _connection.onDataReceived((receivedData) {
       setState(() {
-        _receivedDataStatus = _receivedDataStatus.buildNew(
-          value: receivedData,
-        );
+//        _receivedDataStatus = _receivedDataStatus.buildNew(
+//          value: receivedData,
+//        );
       });
     });
 
@@ -256,22 +214,11 @@ class _MainScreenState extends State<MainScreen> {
   void _disconnect() {
     _connection?.dispose();
     _connection = null;
-
-    setState(() {
-      _sentDataStatus = DataStatus.NONE;
-      _receivedDataStatus = DataStatus.NONE;
-    });
   }
 
-  void _onServerDialogLoopbackCheckChanged(bool value) {
+  void _onServerDialogVideoCheckChanged(bool value) {
     setState(() {
-      _isServerDialogLoopbackChecked = !_isServerDialogLoopbackChecked;
-
-      if (!value) {
-        WidgetsBinding.instance.addPostFrameCallback((d) {
-          _ipAddressFocusNode.requestFocus();
-        });
-      }
+      _isServerDialogVideoChecked = !_isServerDialogVideoChecked;
     });
   }
 
@@ -285,14 +232,13 @@ class _MainScreenState extends State<MainScreen> {
     _disconnect();
 
     setState(() {
-      if (_isServerDialogLoopbackChecked) {
-        _serverConfig = ServerConfig.LOOPBACK;
-      } else {
-        _serverConfig = ServerConfig(
-          _ipAddressEditingController.text,
-          _portEditingController.text,
-        );
-      }
+      _serverConfig = ServerConfig(
+        _ipAddressEditingController.text,
+        _portEditingController.text,
+      );
+
+      _isVideoTurnedOn = _isServerDialogVideoChecked;
+      AppPreferences.setVideoEnabled(_isVideoTurnedOn);
 
       _isServerDialogShown = false;
 
@@ -387,227 +333,6 @@ class _VideoBox extends StatelessWidget {
   }
 }
 
-class _MicButton extends StatelessWidget {
-  final Function onTap;
-  final bool isMicTurnedOn;
-
-  _MicButton({
-    @required this.onTap,
-    @required this.isMicTurnedOn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: CircleBorder(),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isMicTurnedOn ? AppColors.PRIMARY : AppColors.BACKGROUND_GREY,
-            shape: BoxShape.circle,
-          ),
-          child: Image.asset(
-            isMicTurnedOn ? 'assets/ic_mic_on.png' : 'assets/ic_mic_off.png',
-          ),
-        )
-      ),
-    );
-  }
-}
-
-class _VideoButton extends StatelessWidget {
-  final Function onTap;
-  final bool isVideoTurnedOn;
-
-  _VideoButton({
-    @required this.onTap,
-    @required this.isVideoTurnedOn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: CircleBorder(),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isVideoTurnedOn ? AppColors.PRIMARY : AppColors.BACKGROUND_GREY,
-            shape: BoxShape.circle,
-          ),
-          child: Image.asset(
-            isVideoTurnedOn ? 'assets/ic_video_on.png' : 'assets/ic_video_off.png',
-          ),
-        )
-      ),
-    );
-  }
-}
-
-class _DataStatusTable extends StatelessWidget {
-  final DataStatus sentDataStatus;
-  final DataStatus receivedDataStatus;
-
-  _DataStatusTable({
-    @required this.sentDataStatus,
-    @required this.receivedDataStatus,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32,),
-      child: Table(
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          TableRow(
-            children: [
-              Center(
-                child: Text(
-                  'Sent',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.TEXT_BLACK,
-                  ),
-                ),
-              ),
-              const SizedBox.shrink(),
-              Center(
-                child: Text(
-                  'Received',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.TEXT_BLACK,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          TableRow(
-            children: [
-              const SizedBox(height: 10,),
-              const SizedBox(height: 10,),
-              const SizedBox(height: 10,),
-            ],
-          ),
-          TableRow(
-            children: [
-              Center(
-                child: Text(
-                  sentDataStatus.getAccBytesString(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.PRIMARY,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Center(
-                child: Text(
-                  'Acc',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.TEXT_BLACK,
-                  ),
-                ),
-              ),
-              Center(
-                child: Text(
-                  receivedDataStatus.getAccBytesString(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.PRIMARY,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ]
-          ),
-          TableRow(
-            children: [
-              Center(
-                child: Text(
-                  sentDataStatus.getRealtimeBytesString(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.PRIMARY,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Center(
-                child: Text(
-                  'RT',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.TEXT_BLACK,
-                  ),
-                ),
-              ),
-              Center(
-                child: Text(
-                  receivedDataStatus.getRealtimeBytesString(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.PRIMARY,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ]
-          ),
-          TableRow(
-            children: [
-              Center(
-                child: Text(
-                  sentDataStatus.getValueString(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.PRIMARY,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Center(
-                child: Text(
-                  'Value',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.TEXT_BLACK,
-                  ),
-                ),
-              ),
-              Center(
-                child: Text(
-                  receivedDataStatus.getValueString(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.PRIMARY,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ]
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ConnectButton extends StatelessWidget {
   final Connection connection;
   final Function onTap;
@@ -670,19 +395,19 @@ class _Scrim extends StatelessWidget {
 
 class _ServerDialog extends StatelessWidget {
   final FocusNode ipAddressFocusNode;
-  final bool isServerDialogLoopbackChecked;
+  final bool isServerDialogVideoChecked;
   final TextEditingController ipAddressEditingController;
   final TextEditingController portEditingController;
-  final Function onLoopbackCheckboxChanged;
+  final Function onVideoCheckboxChanged;
   final Function onCancelClicked;
   final Function onOkClicked;
 
   _ServerDialog({
     @required this.ipAddressFocusNode,
-    @required this.isServerDialogLoopbackChecked,
+    @required this.isServerDialogVideoChecked,
     @required this.ipAddressEditingController,
     @required this.portEditingController,
-    @required this.onLoopbackCheckboxChanged,
+    @required this.onVideoCheckboxChanged,
     @required this.onCancelClicked,
     @required this.onOkClicked,
   });
@@ -726,13 +451,11 @@ class _ServerDialog extends StatelessWidget {
                 controller: ipAddressEditingController,
                 style: TextStyle(
                   fontSize: 16,
-                  color: isServerDialogLoopbackChecked ? AppColors.TEXT_BLACK_LIGHT
-                    : AppColors.TEXT_BLACK,
+                  color: AppColors.TEXT_BLACK,
                 ),
                 decoration: null,
                 cursorColor: AppColors.TEXT_BLACK,
                 autofocus: true,
-                enabled: !isServerDialogLoopbackChecked,
               ),
               const SizedBox(height: 8),
               Text(
@@ -748,19 +471,17 @@ class _ServerDialog extends StatelessWidget {
                 controller: portEditingController,
                 style: TextStyle(
                   fontSize: 16,
-                  color: isServerDialogLoopbackChecked ? AppColors.TEXT_BLACK_LIGHT
-                    : AppColors.TEXT_BLACK,
+                  color: AppColors.TEXT_BLACK,
                 ),
                 decoration: null,
                 cursorColor: AppColors.TEXT_BLACK,
-                enabled: !isServerDialogLoopbackChecked,
               ),
               const SizedBox(height: 8,),
               Row(
                 children: <Widget>[
                   Checkbox(
-                    value: isServerDialogLoopbackChecked,
-                    onChanged: onLoopbackCheckboxChanged,
+                    value: isServerDialogVideoChecked,
+                    onChanged: onVideoCheckboxChanged,
                   ),
                   Text(
                     'Loopback',

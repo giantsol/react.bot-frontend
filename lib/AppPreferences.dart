@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppPreferences {
   static const KEY_IP_ADDRESS = 'ip.address';
   static const KEY_PORT = 'port';
-  static const KEY_MIC_ENABLED = 'mic.enabled';
   static const KEY_VIDEO_ENABLED = 'video.enabled';
 
   static Future<String> getIpAddress() async {
@@ -26,16 +25,6 @@ class AppPreferences {
   static Future<void> setPort(String value) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.setString(KEY_PORT, value);
-  }
-
-  static Future<bool> getMicEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(KEY_MIC_ENABLED) ?? false;
-  }
-
-  static Future<void> setMicEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.setBool(KEY_MIC_ENABLED, value);
   }
 
   static Future<bool> getVideoEnabled() async {
