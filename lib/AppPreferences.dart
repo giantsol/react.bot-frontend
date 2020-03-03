@@ -6,6 +6,7 @@ class AppPreferences {
   static const KEY_IP_ADDRESS = 'ip.address';
   static const KEY_PORT = 'port';
   static const KEY_VIDEO_ENABLED = 'video.enabled';
+  static const KEY_SELECTED_PERSONA_KEY = 'selected.persona.key';
 
   static Future<String> getIpAddress() async {
     final prefs = await SharedPreferences.getInstance();
@@ -37,4 +38,8 @@ class AppPreferences {
     return prefs.setBool(KEY_VIDEO_ENABLED, value);
   }
 
+  static Future<String> getSelectedPersonaKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(KEY_SELECTED_PERSONA_KEY) ?? '';
+  }
 }

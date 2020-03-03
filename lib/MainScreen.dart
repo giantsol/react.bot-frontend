@@ -1,12 +1,14 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:audio_streams/audio_streams.dart';
 import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
 import 'package:fb_app/AppPreferences.dart';
 import 'package:fb_app/entity/Connection.dart';
+import 'package:fb_app/entity/Persona.dart';
 import 'package:fb_app/entity/ServerConfig.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -41,6 +43,15 @@ class _MainScreenState extends State<MainScreen> {
 
   Connection _connection;
 
+  final List<Persona> _personas = [
+    const Persona('Pretty'),
+    const Persona('Bald'),
+    const Persona('Bird'),
+    const Persona('Cha Eun Woo'),
+    const Persona('Henie'),
+  ];
+  Persona _selectedPersona;
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +85,9 @@ class _MainScreenState extends State<MainScreen> {
     final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front);
     _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
     await _cameraController.initialize();
+
+    final selectedPersonaKey = await AppPreferences.getSelectedPersonaKey();
+    _selectedPersona = _personas[max<int>(_personas.indexWhere((it) => it.key == selectedPersonaKey), 0)];
 
     if (mounted) {
       setState(() { });
@@ -114,28 +128,57 @@ class _MainScreenState extends State<MainScreen> {
         body: SafeArea(
           child: Stack(
             children: <Widget>[
-              // Main UI
-              Center(
-                child: Column(
-                  children: <Widget>[
-                    const SizedBox(height: 28,),
-                    _ServerButton(
-                      onTap: _onServerBoxClicked,
-                      serverConfig: _serverConfig,
+              Column(
+                children: <Widget>[
+                  const SizedBox(height: 52),
+                  Container(
+                    height: 80,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _personas.length,
+                      itemBuilder: (context, index) {
+                        final persona = _personas[index];
+                        return _PersonaListItem(
+                          persona: persona,
+                          isSelected: persona.key == _selectedPersona.key,
+                          isFirstItem: index == 0,
+                          isLastItem: index == _personas.length - 1,
+                        );
+                      }
                     ),
-                    const SizedBox(height: 28,),
-                    _VideoBox(
-                      isVideoTurnedOn: _isVideoTurnedOn,
-                      cameraController: _cameraController,
-                    ),
-                    const SizedBox(height: 10,),
-                    _ConnectButton(
-                      connection: _connection,
-                      onTap: _onConnectButtonClicked,
-                    ),
-                  ],
-                ),
+                  ),
+                  _PersonaView(
+                    persona: _selectedPersona,
+                  ),
+                  _ConnectButton(
+                    connection: _connection,
+                    onTap: _onConnectButtonClicked,
+                  ),
+                  const SizedBox(height: 60),
+                ],
               ),
+              // Main UI
+//              Center(
+//                child: Column(
+//                  children: <Widget>[
+//                    const SizedBox(height: 28,),
+//                    _ServerButton(
+//                      onTap: _onServerBoxClicked,
+//                      serverConfig: _serverConfig,
+//                    ),
+//                    const SizedBox(height: 28,),
+//                    _VideoBox(
+//                      isVideoTurnedOn: _isVideoTurnedOn,
+//                      cameraController: _cameraController,
+//                    ),
+//                    const SizedBox(height: 10,),
+//                    _ConnectButton(
+//                      connection: _connection,
+//                      onTap: _onConnectButtonClicked,
+//                    ),
+//                  ],
+//                ),
+//              ),
               // Scrim
               _isServerDialogShown ? _Scrim()
                 : const SizedBox.shrink(),
@@ -214,6 +257,8 @@ class _MainScreenState extends State<MainScreen> {
   void _disconnect() {
     _connection?.dispose();
     _connection = null;
+
+    setState(() { });
   }
 
   void _onServerDialogVideoCheckChanged(bool value) {
@@ -333,6 +378,64 @@ class _VideoBox extends StatelessWidget {
   }
 }
 
+class _PersonaListItem extends StatelessWidget {
+  final Persona persona;
+  final bool isSelected;
+  final bool isFirstItem;
+  final bool isLastItem;
+
+  _PersonaListItem({
+    @required this.persona,
+    @required this.isSelected,
+    @required this.isFirstItem,
+    @required this.isLastItem,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: isFirstItem ? 24 : 0,
+        right: isLastItem ? 24 : 0,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Container(
+          width: 64,
+          height: 64,
+          color: Colors.lightBlue,
+        ),
+      ),
+    );
+  }
+}
+
+class _PersonaView extends StatelessWidget {
+  final Persona persona;
+
+  _PersonaView({
+    @required this.persona,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: AspectRatio(
+            aspectRatio: 1.0,
+            child: Container(
+              color: Colors.lightBlue,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+}
+
 class _ConnectButton extends StatelessWidget {
   final Connection connection;
   final Function onTap;
@@ -344,37 +447,33 @@ class _ConnectButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Center(
-        child: Material(
-          borderRadius: BorderRadius.all(Radius.circular(24)),
-          color: connection != null ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
-          child: InkWell(
+    return Material(
+      borderRadius: BorderRadius.all(Radius.circular(24)),
+      color: connection != null ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+      child: InkWell(
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(
+            minWidth: 164,
+            minHeight: 42,
+          ),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.all(Radius.circular(24)),
-            onTap: onTap,
-            child: Container(
-              constraints: BoxConstraints(
-                minWidth: 164,
-                minHeight: 42,
+            border: Border.all(
+              color: AppColors.PRIMARY,
+              width: 2,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Text(
+              connection != null ? 'Disconnect' : 'Connect',
+              style: TextStyle(
+                color: connection != null ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
+                fontSize: 12,
               ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(24)),
-                border: Border.all(
-                  color: AppColors.PRIMARY,
-                  width: 2,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Text(
-                  connection != null ? 'Disconnect' : 'Connect',
-                  style: TextStyle(
-                    color: connection != null ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
-                    fontSize: 12,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ),
