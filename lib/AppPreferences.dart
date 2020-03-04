@@ -42,4 +42,9 @@ class AppPreferences {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(KEY_SELECTED_PERSONA_KEY) ?? '';
   }
+
+  static Future<void> setSelectedPersonaKey(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.setString(KEY_SELECTED_PERSONA_KEY, key);
+  }
 }

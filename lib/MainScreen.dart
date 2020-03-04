@@ -41,7 +41,8 @@ class _MainScreenState extends State<MainScreen> {
 
   CameraController _cameraController;
 
-  Connection _connection;
+  Connection _connection = ServerConnection();
+  ConnectionStatus _connectionStatus = ConnectionStatus.DISCONNECTED;
 
   final List<Persona> _personas = [
     const Persona('Pretty'),
@@ -72,12 +73,16 @@ class _MainScreenState extends State<MainScreen> {
     // even though we haven't connected yet.
     if (Platform.isAndroid) {
       _micStreamSubscription = _androidMicStream.listen((List<int> samples) {
-        _connection?.sendMicData(samples);
+        if (_connectionStatus == ConnectionStatus.CONNECTED) {
+          _connection.sendMicData(samples);
+        }
       });
     } else if (Platform.isIOS) {
       await _iosMicController.intialize();
       _micStreamSubscription = _iosMicController.startAudioStream().listen((List<int> samples) {
-        _connection?.sendMicData(samples);
+        if (_connectionStatus == ConnectionStatus.CONNECTED) {
+          _connection.sendMicData(samples);
+        }
       });
     }
 
@@ -85,6 +90,20 @@ class _MainScreenState extends State<MainScreen> {
     final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front);
     _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
     await _cameraController.initialize();
+
+    _connection.onDataSent((sentData) {
+      setState(() {
+//        _sentDataStatus = _sentDataStatus.buildNew(
+//          value: sentData,
+//        );
+      });
+    });
+
+    _connection.onConnectionStatus((status) {
+      setState(() {
+        _connectionStatus = status;
+      });
+    });
 
     final selectedPersonaKey = await AppPreferences.getSelectedPersonaKey();
     _selectedPersona = _personas[max<int>(_personas.indexWhere((it) => it.key == selectedPersonaKey), 0)];
@@ -112,12 +131,15 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     if (_cameraController != null) {
-      if (_isVideoTurnedOn && _cameraController.value.isInitialized && !_cameraController.value.isStreamingImages) {
+      if (_cameraController.value.isInitialized && !_cameraController.value.isStreamingImages
+        && _isVideoTurnedOn
+        && _connectionStatus == ConnectionStatus.CONNECTED) {
         _cameraController.startImageStream((image) {
-          _connection?.sendCameraData(
+          _connection.sendCameraData(
             image.planes.map((plane) => plane.bytes).toList());
         });
-      } else if (!_isVideoTurnedOn && _cameraController.value.isStreamingImages) {
+      } else if (_cameraController.value.isStreamingImages
+        && (!_isVideoTurnedOn || _connectionStatus != ConnectionStatus.CONNECTED)) {
         _cameraController.stopImageStream();
       }
     }
@@ -128,57 +150,70 @@ class _MainScreenState extends State<MainScreen> {
         body: SafeArea(
           child: Stack(
             children: <Widget>[
-              Column(
+              // Main UI
+              Stack(
                 children: <Widget>[
-                  const SizedBox(height: 52),
-                  Container(
-                    height: 80,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _personas.length,
-                      itemBuilder: (context, index) {
-                        final persona = _personas[index];
-                        return _PersonaListItem(
-                          persona: persona,
-                          isSelected: persona.key == _selectedPersona.key,
-                          isFirstItem: index == 0,
-                          isLastItem: index == _personas.length - 1,
-                        );
-                      }
+                  Column(
+                    children: <Widget>[
+                      const SizedBox(height: 52),
+                      Container(
+                        height: 80,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _personas.length,
+                          itemBuilder: (context, index) {
+                            final persona = _personas[index];
+                            return _PersonaListItem(
+                              persona: persona,
+                              isSelected: persona.key == _selectedPersona?.key,
+                              isFirstItem: index == 0,
+                              isLastItem: index == _personas.length - 1,
+                              onTap: () => _onPersonaListItemClicked(persona),
+                            );
+                          }
+                        ),
+                      ),
+                      _PersonaView(
+                        persona: _selectedPersona,
+                        cameraController: _cameraController,
+                        isVideoEnabled: _isVideoTurnedOn,
+                      ),
+                      _ConnectButton(
+                        connectionStatus: _connectionStatus,
+                        onTap: _onConnectButtonClicked,
+                      ),
+                      _connectionStatus == ConnectionStatus.CONNECTING ? GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _onCancelConnectingClicked,
+                        child: Container(
+                          height: 60,
+                          alignment: Alignment.topCenter,
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.TEXT_BLACK,
+                            ),
+                          ),
+                        ),
+                      ) : const SizedBox(height: 60),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: GestureDetector(
+                      onTap: _onSettingsClicked,
+                      child: Image.asset(
+                        'assets/ic_settings.png',
+                        width: 96,
+                        height: 96,
+                        color: AppColors.BACKGROUND_WHITE,
+                      ),
                     ),
                   ),
-                  _PersonaView(
-                    persona: _selectedPersona,
-                  ),
-                  _ConnectButton(
-                    connection: _connection,
-                    onTap: _onConnectButtonClicked,
-                  ),
-                  const SizedBox(height: 60),
                 ],
               ),
-              // Main UI
-//              Center(
-//                child: Column(
-//                  children: <Widget>[
-//                    const SizedBox(height: 28,),
-//                    _ServerButton(
-//                      onTap: _onServerBoxClicked,
-//                      serverConfig: _serverConfig,
-//                    ),
-//                    const SizedBox(height: 28,),
-//                    _VideoBox(
-//                      isVideoTurnedOn: _isVideoTurnedOn,
-//                      cameraController: _cameraController,
-//                    ),
-//                    const SizedBox(height: 10,),
-//                    _ConnectButton(
-//                      connection: _connection,
-//                      onTap: _onConnectButtonClicked,
-//                    ),
-//                  ],
-//                ),
-//              ),
               // Scrim
               _isServerDialogShown ? _Scrim()
                 : const SizedBox.shrink(),
@@ -208,7 +243,7 @@ class _MainScreenState extends State<MainScreen> {
     return false;
   }
 
-  void _onServerBoxClicked() {
+  void _onSettingsClicked() {
     setState(() {
       _isServerDialogVideoChecked = _isVideoTurnedOn;
 
@@ -221,44 +256,31 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _onPersonaListItemClicked(Persona item) {
+    setState(() {
+      _selectedPersona = item;
+      AppPreferences.setSelectedPersonaKey(item.key);
+    });
+  }
+
+  void _onCancelConnectingClicked() {
+    _disconnect();
+  }
+
   void _onConnectButtonClicked() {
-    if (_connection == null) {
+    if (_connectionStatus == ConnectionStatus.DISCONNECTED) {
       _connect();
-    } else {
+    } else if (_connectionStatus == ConnectionStatus.CONNECTED) {
       _disconnect();
     }
   }
 
   void _connect() {
-    if (_serverConfig.isLoopback()) {
-      _connection = LoopbackConnection();
-    } else {
-      _connection = ServerConnection(_serverConfig);
-    }
-
-    _connection.onDataSent((sentData) {
-      setState(() {
-//        _sentDataStatus = _sentDataStatus.buildNew(
-//          value: sentData,
-//        );
-      });
-    });
-    _connection.onDataReceived((receivedData) {
-      setState(() {
-//        _receivedDataStatus = _receivedDataStatus.buildNew(
-//          value: receivedData,
-//        );
-      });
-    });
-
-    setState(() { });
+    _connection.connect(_serverConfig);
   }
 
   void _disconnect() {
-    _connection?.dispose();
-    _connection = null;
-
-    setState(() { });
+    _connection.disconnect();
   }
 
   void _onServerDialogVideoCheckChanged(bool value) {
@@ -294,101 +316,19 @@ class _MainScreenState extends State<MainScreen> {
 
 }
 
-class _ServerButton extends StatelessWidget {
-  final Function onTap;
-  final ServerConfig serverConfig;
-
-  _ServerButton({
-    @required this.onTap,
-    @required this.serverConfig,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 11),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                'Server',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.TEXT_BLACK,
-                ),
-              ),
-              const SizedBox(height: 4,),
-              Text(
-                serverConfig.isLoopback() ? 'Loopback'
-                  : '${serverConfig.ipAddress}:${serverConfig.port}',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.PRIMARY,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VideoBox extends StatelessWidget {
-  final bool isVideoTurnedOn;
-  final CameraController cameraController;
-
-  _VideoBox({
-    @required this.isVideoTurnedOn,
-    @required this.cameraController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return isVideoTurnedOn ? Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: AspectRatio(
-        aspectRatio: 4.0 / 3.0,
-        child: CameraPreview(cameraController),
-      ),
-    ) : Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: AspectRatio(
-        aspectRatio: 4.0 / 3.0,
-        child: Container(
-          color: AppColors.BACKGROUND_GREY,
-          alignment: Alignment.center,
-          child: Text(
-            'No Video',
-            style: TextStyle(
-              fontSize: 24,
-              color: AppColors.TEXT_WHITE,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _PersonaListItem extends StatelessWidget {
   final Persona persona;
   final bool isSelected;
   final bool isFirstItem;
   final bool isLastItem;
+  final Function onTap;
 
   _PersonaListItem({
     @required this.persona,
     @required this.isSelected,
     @required this.isFirstItem,
     @required this.isLastItem,
+    @required this.onTap,
   });
 
   @override
@@ -398,12 +338,22 @@ class _PersonaListItem extends StatelessWidget {
         left: isFirstItem ? 24 : 0,
         right: isLastItem ? 24 : 0,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Container(
-          width: 64,
-          height: 64,
-          color: Colors.lightBlue,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.all(4),
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.lightBlue,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+              border: Border.all(
+                color: isSelected ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+                width: 4,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -412,21 +362,50 @@ class _PersonaListItem extends StatelessWidget {
 
 class _PersonaView extends StatelessWidget {
   final Persona persona;
+  final CameraController cameraController;
+  final bool isVideoEnabled;
 
   _PersonaView({
     @required this.persona,
+    @required this.cameraController,
+    @required this.isVideoEnabled,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (persona == null) {
+      return Expanded(
+        child: const SizedBox.shrink(),
+      );
+    }
+
     return Expanded(
       child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: AspectRatio(
-            aspectRatio: 1.0,
-            child: Container(
-              color: Colors.lightBlue,
+          child: IntrinsicHeight(
+            child: Stack(
+              children: <Widget>[
+                AspectRatio(
+                  aspectRatio: 1.0,
+                  child: Container(
+                    color: Colors.lightBlue,
+                  ),
+                ),
+                isVideoEnabled ? Align(
+                  alignment: Alignment.bottomLeft,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: 136,
+                      maxWidth: 136,
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: cameraController.value.aspectRatio,
+                      child: CameraPreview(cameraController),
+                    ),
+                  ),
+                ) : const SizedBox.shrink(),
+              ],
             ),
           ),
         ),
@@ -437,11 +416,11 @@ class _PersonaView extends StatelessWidget {
 }
 
 class _ConnectButton extends StatelessWidget {
-  final Connection connection;
+  final ConnectionStatus connectionStatus;
   final Function onTap;
 
   _ConnectButton({
-    @required this.connection,
+    @required this.connectionStatus,
     @required this.onTap,
   });
 
@@ -449,7 +428,7 @@ class _ConnectButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       borderRadius: BorderRadius.all(Radius.circular(24)),
-      color: connection != null ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+      color: connectionStatus == ConnectionStatus.CONNECTED ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
       child: InkWell(
         borderRadius: BorderRadius.all(Radius.circular(24)),
         onTap: onTap,
@@ -468,9 +447,13 @@ class _ConnectButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Text(
-              connection != null ? 'Disconnect' : 'Connect',
+              connectionStatus == ConnectionStatus.CONNECTED ? 'Disconnect'
+                : connectionStatus == ConnectionStatus.CONNECTING ? 'Connecting'
+                : 'Connect',
               style: TextStyle(
-                color: connection != null ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
+                color: connectionStatus == ConnectionStatus.CONNECTED ? AppColors.TEXT_WHITE
+                  : connectionStatus == ConnectionStatus.CONNECTING ? AppColors.TEXT_BLACK_LIGHT
+                  : AppColors.TEXT_BLACK,
                 fontSize: 12,
               ),
               textAlign: TextAlign.center,
@@ -583,7 +566,7 @@ class _ServerDialog extends StatelessWidget {
                     onChanged: onVideoCheckboxChanged,
                   ),
                   Text(
-                    'Loopback',
+                    'Enable Video',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.TEXT_BLACK,
