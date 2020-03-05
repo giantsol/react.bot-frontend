@@ -45,11 +45,11 @@ class _MainScreenState extends State<MainScreen> {
   ConnectionStatus _connectionStatus = ConnectionStatus.DISCONNECTED;
 
   final List<Persona> _personas = [
-    const Persona('Pretty'),
-    const Persona('Bald'),
-    const Persona('Bird'),
-    const Persona('Cha Eun Woo'),
-    const Persona('Henie'),
+    const Persona('Pretty', 'assets/ic_persona1.png'),
+    const Persona('Bald', 'assets/ic_persona2.png'),
+    const Persona('Bird', 'assets/ic_persona3.png'),
+    const Persona('Cha Eun Woo', 'assets/ic_persona4.png'),
+    const Persona('Henie', 'assets/ic_persona5.png'),
   ];
   Persona _selectedPersona;
 
@@ -345,14 +345,14 @@ class _PersonaListItem extends StatelessWidget {
           child: Container(
             width: 72,
             height: 72,
-            decoration: BoxDecoration(
-              color: Colors.lightBlue,
+            foregroundDecoration: BoxDecoration(
               borderRadius: BorderRadius.all(Radius.circular(12)),
               border: Border.all(
                 color: isSelected ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
                 width: 4,
               ),
             ),
+            child: Image.asset(persona.thumbnail),
           ),
         ),
       ),
@@ -401,7 +401,18 @@ class _PersonaView extends StatelessWidget {
                     ),
                     child: AspectRatio(
                       aspectRatio: cameraController.value.aspectRatio,
-                      child: CameraPreview(cameraController),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.TEXT_BLACK_LIGHT,
+                              offset: const Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: CameraPreview(cameraController)
+                      ),
                     ),
                   ),
                 ) : const SizedBox.shrink(),

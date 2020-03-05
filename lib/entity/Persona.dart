@@ -1,6 +1,7 @@
 
 class Persona {
   final String key;
+  final String thumbnail;
 
-  const Persona(this.key);
+  const Persona(this.key, this.thumbnail);
 }
