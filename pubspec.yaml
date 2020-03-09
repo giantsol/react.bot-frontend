@@ -16,6 +16,7 @@ dependencies:
   camera: ^0.5.7+4
   socket_io_client: ^0.9.8
   shared_preferences: ^0.5.6+2
+  audioplayers: ^0.14.0
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +27,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/audio/

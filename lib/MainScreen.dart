@@ -4,6 +4,8 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_streams/audio_streams.dart';
+import 'package:audioplayers/audio_cache.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
 import 'package:fb_app/AppPreferences.dart';
@@ -45,13 +47,17 @@ class _MainScreenState extends State<MainScreen> {
   ConnectionStatus _connectionStatus = ConnectionStatus.DISCONNECTED;
 
   final List<Persona> _personas = [
-    const Persona('Pretty', 'assets/ic_persona1.png'),
+    const Persona('Pretty', 'assets/ic_persona_crowd.png',
+    happyReactions: [
+      Reaction('assets/persona_crowd_cheer01.gif', 'persona_crowd_cheer01.wav'),
+    ]),
     const Persona('Bald', 'assets/ic_persona2.png'),
     const Persona('Bird', 'assets/ic_persona3.png'),
     const Persona('Cha Eun Woo', 'assets/ic_persona4.png'),
     const Persona('Henie', 'assets/ic_persona5.png'),
   ];
   Persona _selectedPersona;
+  Reaction _currentReaction;
 
   @override
   void initState() {
@@ -93,6 +99,7 @@ class _MainScreenState extends State<MainScreen> {
 
     _connection.onDataSent((sentData) {
       setState(() {
+        //todo: show something on ui?
 //        _sentDataStatus = _sentDataStatus.buildNew(
 //          value: sentData,
 //        );
@@ -177,6 +184,8 @@ class _MainScreenState extends State<MainScreen> {
                         persona: _selectedPersona,
                         cameraController: _cameraController,
                         isVideoEnabled: _isVideoTurnedOn,
+                        reaction: _currentReaction,
+                        onReactionFinished: _onReactionFinished,
                       ),
                       _ConnectButton(
                         connectionStatus: _connectionStatus,
@@ -253,6 +262,8 @@ class _MainScreenState extends State<MainScreen> {
       _portEditingController = TextEditingController.fromValue(_portEditingValue);
 
       _isServerDialogShown = true;
+
+      _currentReaction = _selectedPersona.happyReactions[0];
     });
   }
 
@@ -260,6 +271,12 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedPersona = item;
       AppPreferences.setSelectedPersonaKey(item.key);
+    });
+  }
+
+  void _onReactionFinished() {
+    setState(() {
+      _currentReaction = null;
     });
   }
 
@@ -352,7 +369,10 @@ class _PersonaListItem extends StatelessWidget {
                 width: 4,
               ),
             ),
-            child: Image.asset(persona.thumbnail),
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              child: Image.asset(persona.thumbnail, fit: BoxFit.cover)
+            ),
           ),
         ),
       ),
@@ -360,19 +380,70 @@ class _PersonaListItem extends StatelessWidget {
   }
 }
 
-class _PersonaView extends StatelessWidget {
+class _PersonaView extends StatefulWidget {
   final Persona persona;
   final CameraController cameraController;
   final bool isVideoEnabled;
+  final Reaction reaction;
+  final Function onReactionFinished;
 
   _PersonaView({
     @required this.persona,
     @required this.cameraController,
     @required this.isVideoEnabled,
+    @required this.reaction,
+    @required this.onReactionFinished,
   });
 
   @override
+  State createState() => _PersonaViewState();
+
+}
+
+class _PersonaViewState extends State<_PersonaView> {
+  final AudioCache _audioCache = AudioCache(prefix: 'audio/');
+  AudioPlayer _audioPlayer;
+  StreamSubscription<AudioPlayerState> _stateSubscription;
+  String _currentPlayingAudioPath;
+
+  @override
+  void didUpdateWidget(_PersonaView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final reaction = widget.reaction;
+    if (reaction != null && _currentPlayingAudioPath != reaction.audioPath) {
+      _playReactionAudio(reaction.audioPath);
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _stateSubscription?.cancel();
+    _audioPlayer?.dispose();
+  }
+
+  void _playReactionAudio(String audioPath) async {
+    _stateSubscription?.cancel();
+    _audioPlayer?.dispose();
+
+    _currentPlayingAudioPath = audioPath;
+    _audioPlayer = await _audioCache.play(audioPath);
+    _stateSubscription = _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (state == AudioPlayerState.COMPLETED) {
+        widget.onReactionFinished();
+        _currentPlayingAudioPath = null;
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final persona = widget.persona;
+    final isVideoEnabled = widget.isVideoEnabled;
+    final cameraController = widget.cameraController;
+    final reaction = widget.reaction;
+
     if (persona == null) {
       return Expanded(
         child: const SizedBox.shrink(),
@@ -388,8 +459,8 @@ class _PersonaView extends StatelessWidget {
               children: <Widget>[
                 AspectRatio(
                   aspectRatio: 1.0,
-                  child: Container(
-                    color: Colors.lightBlue,
+                  child: Image.asset(
+                    reaction == null ? persona.thumbnail : reaction.imgPath,
                   ),
                 ),
                 isVideoEnabled ? Align(

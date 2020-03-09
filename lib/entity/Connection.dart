@@ -75,7 +75,7 @@ class ServerConnection implements Connection {
       _onConnectionStatusCallback(_connectionStatus);
     }
 
-    _socket = io('https://${config.ipAddress}:${config.port}', <String, dynamic>{
+    _socket = io('http://${config.ipAddress}:${config.port}', <String, dynamic>{
       'transports': ['websocket'],
     });
 
