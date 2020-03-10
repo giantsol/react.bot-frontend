@@ -47,12 +47,34 @@ class _MainScreenState extends State<MainScreen> {
   ConnectionStatus _connectionStatus = ConnectionStatus.DISCONNECTED;
 
   final List<Persona> _personas = [
-    const Persona('Pretty', 'assets/ic_persona_crowd.png',
-    happyReactions: [
-      Reaction('assets/persona_crowd_cheer01.gif', 'persona_crowd_cheer01.wav'),
-    ]),
-    const Persona('Bald', 'assets/ic_persona2.png'),
-    const Persona('Bird', 'assets/ic_persona3.png'),
+    const Persona('Crowd', 'assets/ic_persona_crowd2.jpeg',
+      happyReactions: [
+        Reaction('assets/persona_crowd_cheer01.gif', 'persona_crowd_cheer01.wav'),
+        Reaction('assets/persona_crowd_cheer02.webp', 'persona_crowd_cheer02.wav'),
+      ], sadReactions: [
+        Reaction('assets/persona_crowd_sad01.webp', 'persona_crowd_sad01.wav'),
+      ], angryReactions: [
+        Reaction('assets/persona_crowd_angry01.webp', 'persona_crowd_angry01.wav'),
+      ],
+    ),
+    const Persona('Baby', 'assets/ic_persona_baby.jpeg',
+      happyReactions: [
+        Reaction('assets/persona_baby_cheer01.jpg', 'persona_baby_cheer01.wav'),
+      ], sadReactions: [
+        Reaction('assets/persona_baby_sad02.jpg', 'persona_baby_sad02.wav'),
+      ], angryReactions: [
+
+      ],
+    ),
+    const Persona('Robot', 'assets/ic_persona_robot.jpg',
+      happyReactions: [
+        Reaction('assets/persona_baby_cheer01.jpg', 'persona_baby_cheer01.wav'),
+      ], sadReactions: [
+        Reaction('assets/persona_baby_sad02.jpg', 'persona_baby_sad02.wav'),
+      ], angryReactions: [
+
+      ],
+    ),
     const Persona('Cha Eun Woo', 'assets/ic_persona4.png'),
     const Persona('Henie', 'assets/ic_persona5.png'),
   ];
@@ -221,6 +243,42 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     ),
                   ),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        InkWell(
+                          onTap: _onNeutralClicked,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text('Neutral'),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: _onHappyClicked,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text('Happy'),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: _onSadClicked,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text('Sad'),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: _onAngryClicked,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text('Angry'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               // Scrim
@@ -252,6 +310,50 @@ class _MainScreenState extends State<MainScreen> {
     return false;
   }
 
+  void _onNeutralClicked() {
+    setState(() {
+      if (_selectedPersona.neutralReactions.length > 0) {
+        _currentReaction = _selectedPersona.neutralReactions[Random().nextInt(
+          _selectedPersona.neutralReactions.length)];
+      } else {
+        _currentReaction = null;
+      }
+    });
+  }
+
+  void _onHappyClicked() {
+    setState(() {
+      if (_selectedPersona.happyReactions.length > 0) {
+        _currentReaction = _selectedPersona.happyReactions[Random().nextInt(
+          _selectedPersona.happyReactions.length)];
+      } else {
+        _currentReaction = null;
+      }
+    });
+  }
+
+  void _onSadClicked() {
+    setState(() {
+      if (_selectedPersona.sadReactions.length > 0) {
+        _currentReaction = _selectedPersona.sadReactions[Random().nextInt(
+          _selectedPersona.sadReactions.length)];
+      } else {
+        _currentReaction = null;
+      }
+    });
+  }
+
+  void _onAngryClicked() {
+    setState(() {
+      if (_selectedPersona.angryReactions.length > 0) {
+        _currentReaction = _selectedPersona.angryReactions[Random().nextInt(
+          _selectedPersona.angryReactions.length)];
+      } else {
+        _currentReaction = null;
+      }
+    });
+  }
+
   void _onSettingsClicked() {
     setState(() {
       _isServerDialogVideoChecked = _isVideoTurnedOn;
@@ -262,8 +364,6 @@ class _MainScreenState extends State<MainScreen> {
       _portEditingController = TextEditingController.fromValue(_portEditingValue);
 
       _isServerDialogShown = true;
-
-      _currentReaction = _selectedPersona.happyReactions[0];
     });
   }
 
@@ -411,7 +511,9 @@ class _PersonaViewState extends State<_PersonaView> {
     super.didUpdateWidget(oldWidget);
 
     final reaction = widget.reaction;
-    if (reaction != null && _currentPlayingAudioPath != reaction.audioPath) {
+    if (reaction == null) {
+      _stopReactionAudio();
+    } else if (reaction != null && _currentPlayingAudioPath != reaction.audioPath) {
       _playReactionAudio(reaction.audioPath);
     }
   }
@@ -419,13 +521,18 @@ class _PersonaViewState extends State<_PersonaView> {
   @override
   void dispose() {
     super.dispose();
+    _stopReactionAudio();
+  }
+
+  void _stopReactionAudio() {
     _stateSubscription?.cancel();
+    _audioPlayer?.stop();
     _audioPlayer?.dispose();
+    _currentPlayingAudioPath = null;
   }
 
   void _playReactionAudio(String audioPath) async {
-    _stateSubscription?.cancel();
-    _audioPlayer?.dispose();
+    _stopReactionAudio();
 
     _currentPlayingAudioPath = audioPath;
     _audioPlayer = await _audioCache.play(audioPath);
