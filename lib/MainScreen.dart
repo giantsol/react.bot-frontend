@@ -63,7 +63,7 @@ class _MainScreenState extends State<MainScreen> {
       ], sadReactions: [
         Reaction('assets/persona_baby_sad02.jpg', 'persona_baby_sad02.wav'),
       ], angryReactions: [
-
+        Reaction('assets/persona_crowd_angry01.webp', 'persona_crowd_angry01.wav'),
       ],
     ),
     const Persona('Robot', 'assets/ic_persona_robot.jpg',
@@ -119,13 +119,26 @@ class _MainScreenState extends State<MainScreen> {
     _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
     await _cameraController.initialize();
 
-    _connection.onDataSent((sentData) {
-      setState(() {
+//    _connection.onDataSent((sentData) {
+//      setState(() {
         //todo: show something on ui?
 //        _sentDataStatus = _sentDataStatus.buildNew(
 //          value: sentData,
 //        );
-      });
+//      });
+//    });
+
+    _connection.onDataReceived((data) {
+      final number = int.tryParse(data) ?? 2;
+      if (number == 0) {
+        _onAngryClicked();
+      } else if (number == 1) {
+        _onHappyClicked();
+      } else if (number == 3) {
+        _onSadClicked();
+      } else {
+        _onNeutralClicked();
+      }
     });
 
     _connection.onConnectionStatus((status) {
@@ -315,8 +328,6 @@ class _MainScreenState extends State<MainScreen> {
       if (_selectedPersona.neutralReactions.length > 0) {
         _currentReaction = _selectedPersona.neutralReactions[Random().nextInt(
           _selectedPersona.neutralReactions.length)];
-      } else {
-        _currentReaction = null;
       }
     });
   }
@@ -326,8 +337,6 @@ class _MainScreenState extends State<MainScreen> {
       if (_selectedPersona.happyReactions.length > 0) {
         _currentReaction = _selectedPersona.happyReactions[Random().nextInt(
           _selectedPersona.happyReactions.length)];
-      } else {
-        _currentReaction = null;
       }
     });
   }
@@ -337,8 +346,6 @@ class _MainScreenState extends State<MainScreen> {
       if (_selectedPersona.sadReactions.length > 0) {
         _currentReaction = _selectedPersona.sadReactions[Random().nextInt(
           _selectedPersona.sadReactions.length)];
-      } else {
-        _currentReaction = null;
       }
     });
   }
@@ -348,8 +355,6 @@ class _MainScreenState extends State<MainScreen> {
       if (_selectedPersona.angryReactions.length > 0) {
         _currentReaction = _selectedPersona.angryReactions[Random().nextInt(
           _selectedPersona.angryReactions.length)];
-      } else {
-        _currentReaction = null;
       }
     });
   }
