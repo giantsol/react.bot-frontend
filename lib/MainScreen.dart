@@ -35,10 +35,10 @@ class _MainScreenState extends State<MainScreen> {
   FocusNode _ipAddressFocusNode = FocusNode();
 
   Stream<List<int>> _androidMicStream = microphone(
-    sampleRate: 44100,
+    sampleRate: 16000,
     audioFormat: AudioFormat.ENCODING_PCM_16BIT,
   );
-  AudioController _iosMicController = AudioController(CommonFormat.Int16, 44100, 1, true);
+  AudioController _iosMicController = AudioController(CommonFormat.Int16, 16000, 1, true);
   StreamSubscription<List<int>> _micStreamSubscription;
 
   CameraController _cameraController;
