@@ -81,6 +81,9 @@ class _MainScreenState extends State<MainScreen> {
   Persona _selectedPersona;
   Reaction _currentReaction;
 
+  bool _speakPressed = false;
+  String _sentDataSummary;
+
   @override
   void initState() {
     super.initState();
@@ -101,14 +104,14 @@ class _MainScreenState extends State<MainScreen> {
     // even though we haven't connected yet.
     if (Platform.isAndroid) {
       _micStreamSubscription = _androidMicStream.listen((List<int> samples) {
-        if (_connectionStatus == ConnectionStatus.CONNECTED) {
+        if (_connectionStatus == ConnectionStatus.CONNECTED && _speakPressed) {
           _connection.sendMicData(samples);
         }
       });
     } else if (Platform.isIOS) {
       await _iosMicController.intialize();
       _micStreamSubscription = _iosMicController.startAudioStream().listen((List<int> samples) {
-        if (_connectionStatus == ConnectionStatus.CONNECTED) {
+        if (_connectionStatus == ConnectionStatus.CONNECTED && _speakPressed) {
           _connection.sendMicData(samples);
         }
       });
@@ -119,14 +122,11 @@ class _MainScreenState extends State<MainScreen> {
     _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
     await _cameraController.initialize();
 
-//    _connection.onDataSent((sentData) {
-//      setState(() {
-        //todo: show something on ui?
-//        _sentDataStatus = _sentDataStatus.buildNew(
-//          value: sentData,
-//        );
-//      });
-//    });
+    _connection.onDataSent((sentData) {
+      setState(() {
+        _sentDataSummary = sentData.toString();
+      });
+    });
 
     _connection.onDataReceived((data) {
       final number = int.tryParse(data) ?? 2;
@@ -292,6 +292,30 @@ class _MainScreenState extends State<MainScreen> {
                       ],
                     ),
                   ),
+                  _sentDataSummary != null ? Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Text(_sentDataSummary),
+                  ) : const SizedBox.shrink(),
+                  _connectionStatus == ConnectionStatus.CONNECTED ? Align(
+                    alignment: Alignment.bottomCenter,
+                    child: GestureDetector(
+                      onTapDown: _onSpeakTapDown,
+                      onTapUp: _onSpeakTapUp,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _speakPressed ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+                        ),
+                        child: Text(
+                          'Speak',
+                          style: TextStyle(
+                            color: _speakPressed ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ) : const SizedBox.shrink(),
                 ],
               ),
               // Scrim
@@ -321,6 +345,22 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return false;
+  }
+
+  void _onSpeakTapDown(TapDownDetails _) {
+    print('onSpeakTapDown');
+    _connection.sendSpeakStart();
+    setState(() {
+      _speakPressed = true;
+    });
+  }
+
+  void _onSpeakTapUp(TapUpDetails _) {
+    print('onSpeakTapUp');
+    _connection.sendSpeakEnd();
+    setState(() {
+      _speakPressed = false;
+    });
   }
 
   void _onNeutralClicked() {

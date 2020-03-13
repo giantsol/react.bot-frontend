@@ -6,6 +6,8 @@ import 'package:socket_io_client/socket_io_client.dart';
 
 abstract class Connection {
 
+  void sendSpeakStart();
+  void sendSpeakEnd();
   void sendMicData(List<int> data);
   void sendCameraData(List<Uint8List> data);
 
@@ -30,6 +32,28 @@ class ServerConnection implements Connection {
   Function(dynamic data) _onDataSentCallback;
   Function(dynamic data) _onDataReceivedCallback;
   Function(ConnectionStatus status) _onConnectionStatusCallback;
+
+  @override
+  void sendSpeakStart() {
+    if (_connectionStatus == ConnectionStatus.CONNECTED) {
+      _socket.emit('mic_on', 1);
+
+      if (_onDataSentCallback != null) {
+        _onDataSentCallback('Speak Start');
+      }
+    }
+  }
+
+  @override
+  void sendSpeakEnd() {
+    if (_connectionStatus == ConnectionStatus.CONNECTED) {
+      _socket.emit('mic_on', 0);
+
+      if (_onDataSentCallback != null) {
+        _onDataSentCallback('Speak End');
+      }
+    }
+  }
 
   @override
   void sendMicData(List<int> data) {
@@ -77,7 +101,7 @@ class ServerConnection implements Connection {
 
     _socket = io('http://${config.ipAddress}:${config.port}', <String, dynamic>{
       'transports': ['websocket'],
-    });
+    }).connect();
 
     _socket.on('connect', (_) {
       print('socket connected');
@@ -91,10 +115,12 @@ class ServerConnection implements Connection {
 
     _socket.on('connect_error', (_) {
       print('socket connection error');
+      disconnect();
     });
 
     _socket.on('connect_timeout', (_) {
       print('socket connection timeout');
+      disconnect();
     });
 
     _socket.on('fromSerer', (data) {
@@ -108,10 +134,7 @@ class ServerConnection implements Connection {
     _socket.on('disconnect', (_) {
       print('client socket disconnected');
 
-      _connectionStatus = ConnectionStatus.DISCONNECTED;
-      if (_onConnectionStatusCallback != null) {
-        _onConnectionStatusCallback(_connectionStatus);
-      }
+      disconnect();
     });
   }
 
@@ -124,4 +147,5 @@ class ServerConnection implements Connection {
       _onConnectionStatusCallback(_connectionStatus);
     }
   }
+
 }
