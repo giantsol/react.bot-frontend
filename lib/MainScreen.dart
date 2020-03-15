@@ -6,7 +6,6 @@ import 'dart:math';
 import 'package:audio_streams/audio_streams.dart';
 import 'package:audioplayers/audio_cache.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:camera/camera.dart';
 import 'package:fb_app/AppColors.dart';
 import 'package:fb_app/AppPreferences.dart';
 import 'package:fb_app/entity/Connection.dart';
@@ -22,11 +21,8 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-
   ServerConfig _serverConfig = ServerConfig.LOOPBACK;
-  bool _isVideoTurnedOn = false;
   bool _isServerDialogShown = false;
-  bool _isServerDialogVideoChecked = false;
 
   TextEditingValue _ipAddressEditingValue;
   TextEditingValue _portEditingValue;
@@ -40,8 +36,6 @@ class _MainScreenState extends State<MainScreen> {
   );
   AudioController _iosMicController = AudioController(CommonFormat.Int16, 16000, 1, true);
   StreamSubscription<List<int>> _micStreamSubscription;
-
-  CameraController _cameraController;
 
   Connection _connection = ServerConnection();
   ConnectionStatus _connectionStatus = ConnectionStatus.DISCONNECTED;
@@ -86,8 +80,6 @@ class _MainScreenState extends State<MainScreen> {
     final savedPort = await AppPreferences.getPort();
     _serverConfig = ServerConfig(savedIpAddress, savedPort);
 
-    _isVideoTurnedOn = await AppPreferences.getVideoEnabled();
-
     _ipAddressEditingValue = TextEditingValue(text: _serverConfig.ipAddress);
     _portEditingValue = TextEditingValue(text: _serverConfig.port);
 
@@ -106,13 +98,6 @@ class _MainScreenState extends State<MainScreen> {
           _connection.sendMicData(samples);
         }
       });
-    }
-
-    final _cameras = await availableCameras();
-    final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front, orElse: () => null);
-    if (selfieCamera != null) {
-      _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
-      await _cameraController.initialize();
     }
 
     _connection.onDataReceived((data) {
@@ -151,28 +136,11 @@ class _MainScreenState extends State<MainScreen> {
       _iosMicController.stopAudioStream();
     }
 
-    _cameraController.stopImageStream();
-    _cameraController.dispose();
-
     _disconnect();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_cameraController != null) {
-      if (_cameraController.value.isInitialized && !_cameraController.value.isStreamingImages
-        && _isVideoTurnedOn
-        && _connectionStatus == ConnectionStatus.CONNECTED) {
-        _cameraController.startImageStream((image) {
-          _connection.sendCameraData(
-            image.planes.map((plane) => plane.bytes).toList());
-        });
-      } else if (_cameraController.value.isStreamingImages
-        && (!_isVideoTurnedOn || _connectionStatus != ConnectionStatus.CONNECTED)) {
-        _cameraController.stopImageStream();
-      }
-    }
-
     return WillPopScope(
       onWillPop: () async => !_handleBackPress(),
       child: SafeArea(
@@ -203,8 +171,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     _PersonaView(
                       persona: _selectedPersona,
-                      cameraController: _cameraController,
-                      isVideoEnabled: _isVideoTurnedOn,
                       reaction: _currentReaction,
                       onReactionFinished: _onReactionFinished,
                     ),
@@ -271,10 +237,8 @@ class _MainScreenState extends State<MainScreen> {
             // Server Dialog
             _isServerDialogShown ? _ServerDialog(
               ipAddressFocusNode: _ipAddressFocusNode,
-              isServerDialogVideoChecked: _isServerDialogVideoChecked,
               ipAddressEditingController: _ipAddressEditingController,
               portEditingController: _portEditingController,
-              onVideoCheckboxChanged: _onServerDialogVideoCheckChanged,
               onCancelClicked: _onServerDialogCancelClicked,
               onOkClicked: _onServerDialogOkClicked,
             ) : const SizedBox.shrink(),
@@ -345,8 +309,6 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onSettingsClicked() {
     setState(() {
-      _isServerDialogVideoChecked = _isVideoTurnedOn;
-
       _ipAddressEditingValue = _ipAddressEditingValue.copyWith(text: _serverConfig.ipAddress);
       _portEditingValue = _portEditingValue.copyWith(text: _serverConfig.port);
       _ipAddressEditingController = TextEditingController.fromValue(_ipAddressEditingValue);
@@ -389,12 +351,6 @@ class _MainScreenState extends State<MainScreen> {
     _connection.disconnect();
   }
 
-  void _onServerDialogVideoCheckChanged(bool value) {
-    setState(() {
-      _isServerDialogVideoChecked = !_isServerDialogVideoChecked;
-    });
-  }
-
   void _onServerDialogCancelClicked() {
     setState(() {
       _isServerDialogShown = false;
@@ -409,9 +365,6 @@ class _MainScreenState extends State<MainScreen> {
         _ipAddressEditingController.text,
         _portEditingController.text,
       );
-
-      _isVideoTurnedOn = _isServerDialogVideoChecked;
-      AppPreferences.setVideoEnabled(_isVideoTurnedOn);
 
       _isServerDialogShown = false;
 
@@ -471,15 +424,11 @@ class _PersonaListItem extends StatelessWidget {
 
 class _PersonaView extends StatefulWidget {
   final Persona persona;
-  final CameraController cameraController;
-  final bool isVideoEnabled;
   final Reaction reaction;
   final Function onReactionFinished;
 
   _PersonaView({
     @required this.persona,
-    @required this.cameraController,
-    @required this.isVideoEnabled,
     @required this.reaction,
     @required this.onReactionFinished,
   });
@@ -536,8 +485,6 @@ class _PersonaViewState extends State<_PersonaView> {
   @override
   Widget build(BuildContext context) {
     final persona = widget.persona;
-    final isVideoEnabled = widget.isVideoEnabled;
-    final cameraController = widget.cameraController;
     final reaction = widget.reaction;
 
     if (persona == null) {
@@ -559,30 +506,6 @@ class _PersonaViewState extends State<_PersonaView> {
                     reaction == null ? persona.thumbnail : reaction.imgPath,
                   ),
                 ),
-                isVideoEnabled ? Align(
-                  alignment: Alignment.bottomLeft,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: 136,
-                      maxWidth: 136,
-                    ),
-                    child: AspectRatio(
-                      aspectRatio: cameraController.value.aspectRatio,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.TEXT_BLACK_LIGHT,
-                              offset: const Offset(0, 2),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: CameraPreview(cameraController)
-                      ),
-                    ),
-                  ),
-                ) : const SizedBox.shrink(),
               ],
             ),
           ),
@@ -655,19 +578,15 @@ class _Scrim extends StatelessWidget {
 
 class _ServerDialog extends StatelessWidget {
   final FocusNode ipAddressFocusNode;
-  final bool isServerDialogVideoChecked;
   final TextEditingController ipAddressEditingController;
   final TextEditingController portEditingController;
-  final Function onVideoCheckboxChanged;
   final Function onCancelClicked;
   final Function onOkClicked;
 
   _ServerDialog({
     @required this.ipAddressFocusNode,
-    @required this.isServerDialogVideoChecked,
     @required this.ipAddressEditingController,
     @required this.portEditingController,
-    @required this.onVideoCheckboxChanged,
     @required this.onCancelClicked,
     @required this.onOkClicked,
   });
@@ -735,22 +654,6 @@ class _ServerDialog extends StatelessWidget {
                 ),
                 decoration: null,
                 cursorColor: AppColors.TEXT_BLACK,
-              ),
-              const SizedBox(height: 8,),
-              Row(
-                children: <Widget>[
-                  Checkbox(
-                    value: isServerDialogVideoChecked,
-                    onChanged: onVideoCheckboxChanged,
-                  ),
-                  Text(
-                    'Enable Video',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.TEXT_BLACK,
-                    ),
-                  )
-                ],
               ),
               const SizedBox(height: 8),
               Row(
