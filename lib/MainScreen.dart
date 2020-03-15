@@ -122,11 +122,11 @@ class _MainScreenState extends State<MainScreen> {
     _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
     await _cameraController.initialize();
 
-    _connection.onDataSent((sentData) {
-      setState(() {
-        _sentDataSummary = sentData.toString();
-      });
-    });
+//    _connection.onDataSent((sentData) {
+//      setState(() {
+//        _sentDataSummary = sentData.toString();
+//      });
+//    });
 
     _connection.onDataReceived((data) {
       final number = int.tryParse(data) ?? 2;
@@ -188,151 +188,149 @@ class _MainScreenState extends State<MainScreen> {
 
     return WillPopScope(
       onWillPop: () async => !_handleBackPress(),
-      child: Scaffold(
-        body: SafeArea(
-          child: Stack(
-            children: <Widget>[
-              // Main UI
-              Stack(
-                children: <Widget>[
-                  Column(
-                    children: <Widget>[
-                      const SizedBox(height: 52),
-                      Container(
-                        height: 80,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _personas.length,
-                          itemBuilder: (context, index) {
-                            final persona = _personas[index];
-                            return _PersonaListItem(
-                              persona: persona,
-                              isSelected: persona.key == _selectedPersona?.key,
-                              isFirstItem: index == 0,
-                              isLastItem: index == _personas.length - 1,
-                              onTap: () => _onPersonaListItemClicked(persona),
-                            );
-                          }
-                        ),
+      child: SafeArea(
+        child: Stack(
+          children: <Widget>[
+            // Main UI
+            Stack(
+              children: <Widget>[
+                Column(
+                  children: <Widget>[
+                    const SizedBox(height: 52),
+                    Container(
+                      height: 80,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _personas.length,
+                        itemBuilder: (context, index) {
+                          final persona = _personas[index];
+                          return _PersonaListItem(
+                            persona: persona,
+                            isSelected: persona.key == _selectedPersona?.key,
+                            isFirstItem: index == 0,
+                            isLastItem: index == _personas.length - 1,
+                            onTap: () => _onPersonaListItemClicked(persona),
+                          );
+                        }
                       ),
-                      _PersonaView(
-                        persona: _selectedPersona,
-                        cameraController: _cameraController,
-                        isVideoEnabled: _isVideoTurnedOn,
-                        reaction: _currentReaction,
-                        onReactionFinished: _onReactionFinished,
-                      ),
-                      _ConnectButton(
-                        connectionStatus: _connectionStatus,
-                        onTap: _onConnectButtonClicked,
-                      ),
-                      _connectionStatus == ConnectionStatus.CONNECTING ? GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: _onCancelConnectingClicked,
-                        child: Container(
-                          height: 60,
-                          alignment: Alignment.topCenter,
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.TEXT_BLACK,
-                            ),
+                    ),
+                    _PersonaView(
+                      persona: _selectedPersona,
+                      cameraController: _cameraController,
+                      isVideoEnabled: _isVideoTurnedOn,
+                      reaction: _currentReaction,
+                      onReactionFinished: _onReactionFinished,
+                    ),
+                    _ConnectButton(
+                      connectionStatus: _connectionStatus,
+                      onTap: _onConnectButtonClicked,
+                    ),
+                    _connectionStatus == ConnectionStatus.CONNECTING ? GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _onCancelConnectingClicked,
+                      child: Container(
+                        height: 60,
+                        alignment: Alignment.topCenter,
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.TEXT_BLACK,
                           ),
                         ),
-                      ) : const SizedBox(height: 60),
+                      ),
+                    ) : const SizedBox(height: 60),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: GestureDetector(
+                    onTap: _onSettingsClicked,
+                    child: Image.asset(
+                      'assets/ic_settings.png',
+                      width: 96,
+                      height: 96,
+                      color: AppColors.BACKGROUND_WHITE,
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      InkWell(
+                        onTap: _onNeutralClicked,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text('Neutral'),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: _onHappyClicked,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text('Happy'),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: _onSadClicked,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text('Sad'),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: _onAngryClicked,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text('Angry'),
+                        ),
+                      ),
                     ],
                   ),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: GestureDetector(
-                      onTap: _onSettingsClicked,
-                      child: Image.asset(
-                        'assets/ic_settings.png',
-                        width: 96,
-                        height: 96,
-                        color: AppColors.BACKGROUND_WHITE,
+                ),
+                _sentDataSummary != null ? Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Text(_sentDataSummary),
+                ) : const SizedBox.shrink(),
+                _connectionStatus == ConnectionStatus.CONNECTED ? Align(
+                  alignment: Alignment.bottomCenter,
+                  child: GestureDetector(
+                    onTapDown: _onSpeakTapDown,
+                    onTapUp: _onSpeakTapUp,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _speakPressed ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
+                      ),
+                      child: Text(
+                        'Speak',
+                        style: TextStyle(
+                          color: _speakPressed ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
+                        ),
                       ),
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        InkWell(
-                          onTap: _onNeutralClicked,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text('Neutral'),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: _onHappyClicked,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text('Happy'),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: _onSadClicked,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text('Sad'),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: _onAngryClicked,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text('Angry'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _sentDataSummary != null ? Align(
-                    alignment: Alignment.bottomLeft,
-                    child: Text(_sentDataSummary),
-                  ) : const SizedBox.shrink(),
-                  _connectionStatus == ConnectionStatus.CONNECTED ? Align(
-                    alignment: Alignment.bottomCenter,
-                    child: GestureDetector(
-                      onTapDown: _onSpeakTapDown,
-                      onTapUp: _onSpeakTapUp,
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: _speakPressed ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
-                        ),
-                        child: Text(
-                          'Speak',
-                          style: TextStyle(
-                            color: _speakPressed ? AppColors.TEXT_WHITE : AppColors.TEXT_BLACK,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ) : const SizedBox.shrink(),
-                ],
-              ),
-              // Scrim
-              _isServerDialogShown ? _Scrim()
-                : const SizedBox.shrink(),
-              // Server Dialog
-              _isServerDialogShown ? _ServerDialog(
-                ipAddressFocusNode: _ipAddressFocusNode,
-                isServerDialogVideoChecked: _isServerDialogVideoChecked,
-                ipAddressEditingController: _ipAddressEditingController,
-                portEditingController: _portEditingController,
-                onVideoCheckboxChanged: _onServerDialogVideoCheckChanged,
-                onCancelClicked: _onServerDialogCancelClicked,
-                onOkClicked: _onServerDialogOkClicked,
-              ) : const SizedBox.shrink(),
-            ],
-          ),
+                ) : const SizedBox.shrink(),
+              ],
+            ),
+            // Scrim
+            _isServerDialogShown ? _Scrim()
+              : const SizedBox.shrink(),
+            // Server Dialog
+            _isServerDialogShown ? _ServerDialog(
+              ipAddressFocusNode: _ipAddressFocusNode,
+              isServerDialogVideoChecked: _isServerDialogVideoChecked,
+              ipAddressEditingController: _ipAddressEditingController,
+              portEditingController: _portEditingController,
+              onVideoCheckboxChanged: _onServerDialogVideoCheckChanged,
+              onCancelClicked: _onServerDialogCancelClicked,
+              onOkClicked: _onServerDialogOkClicked,
+            ) : const SizedBox.shrink(),
+          ],
         ),
       ),
     );

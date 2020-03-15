@@ -1,8 +1,8 @@
 import 'package:fb_app/AppColors.dart';
-import 'package:fb_app/MainScreen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fb_app/MainScreen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +10,10 @@ Future<void> main() async {
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
 
   runApp(App());
 }
@@ -40,7 +44,7 @@ class App extends StatelessWidget {
         }
         return widget;
       },
-      home: MainScreen(),
+      home: Scaffold(body: MainScreen()),
     );
   }
 }
