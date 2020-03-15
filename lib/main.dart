@@ -44,6 +44,7 @@ class App extends StatelessWidget {
         }
         return widget;
       },
+      debugShowCheckedModeBanner: false,
       home: Scaffold(body: MainScreen()),
     );
   }

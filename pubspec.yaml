@@ -27,4 +27,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
-    - assets/audio/
+    - assets/persona1/
+    - assets/persona2/
+    - assets/persona3/
+    - assets/persona4/
+    - assets/persona5/

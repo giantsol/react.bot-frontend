@@ -47,42 +47,33 @@ class _MainScreenState extends State<MainScreen> {
   ConnectionStatus _connectionStatus = ConnectionStatus.DISCONNECTED;
 
   final List<Persona> _personas = [
-    const Persona('Crowd', 'assets/ic_persona_crowd2.jpeg',
+    const Persona('Henie', 'assets/persona1/thumbnail.png',
       happyReactions: [
-        Reaction('assets/persona_crowd_cheer01.gif', 'persona_crowd_cheer01.wav'),
-        Reaction('assets/persona_crowd_cheer02.webp', 'persona_crowd_cheer02.wav'),
+        Reaction('assets/persona1/excited.GIF', 'persona1/excited_1.wav'),
       ], sadReactions: [
-        Reaction('assets/persona_crowd_sad01.webp', 'persona_crowd_sad01.wav'),
+        Reaction('assets/persona1/sad.GIF', 'persona1/sad_1.wav'),
+        Reaction('assets/persona1/sad.GIF', 'persona1/sad2_1.wav'),
       ], angryReactions: [
-        Reaction('assets/persona_crowd_angry01.webp', 'persona_crowd_angry01.wav'),
+        Reaction('assets/persona1/angry.GIF', 'persona1/angry_1.wav'),
+      ], neutralReactions: [
+        Reaction('assets/persona1/neutral.GIF', 'persona1/neutral_1.wav'),
       ],
     ),
-    const Persona('Baby', 'assets/ic_persona_baby.jpeg',
-      happyReactions: [
-        Reaction('assets/persona_baby_cheer01.jpg', 'persona_baby_cheer01.wav'),
-      ], sadReactions: [
-        Reaction('assets/persona_baby_sad02.jpg', 'persona_baby_sad02.wav'),
-      ], angryReactions: [
-        Reaction('assets/persona_crowd_angry01.webp', 'persona_crowd_angry01.wav'),
-      ],
-    ),
-    const Persona('Robot', 'assets/ic_persona_robot.jpg',
-      happyReactions: [
-        Reaction('assets/persona_baby_cheer01.jpg', 'persona_baby_cheer01.wav'),
-      ], sadReactions: [
-        Reaction('assets/persona_baby_sad02.jpg', 'persona_baby_sad02.wav'),
-      ], angryReactions: [
+    const Persona('Bro', 'assets/persona4/thumbnail.jpeg',
 
-      ],
     ),
-    const Persona('Cha Eun Woo', 'assets/ic_persona4.png'),
-    const Persona('Henie', 'assets/ic_persona5.png'),
+    const Persona('Dog', 'assets/persona2/thumbnail.png',
+
+    ),
+    const Persona('Cat', 'assets/persona3/thumbnail.png',
+
+    ),
+    const Persona('Cha Eun Woo', 'assets/persona5/thumbnail.png'),
   ];
   Persona _selectedPersona;
   Reaction _currentReaction;
 
   bool _speakPressed = false;
-  String _sentDataSummary;
 
   @override
   void initState() {
@@ -118,15 +109,11 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     final _cameras = await availableCameras();
-    final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front);
-    _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
-    await _cameraController.initialize();
-
-//    _connection.onDataSent((sentData) {
-//      setState(() {
-//        _sentDataSummary = sentData.toString();
-//      });
-//    });
+    final selfieCamera = _cameras.firstWhere((it) => it.lensDirection == CameraLensDirection.front, orElse: () => null);
+    if (selfieCamera != null) {
+      _cameraController = CameraController(selfieCamera, ResolutionPreset.low, enableAudio: false);
+      await _cameraController.initialize();
+    }
 
     _connection.onDataReceived((data) {
       final number = int.tryParse(data) ?? 2;
@@ -255,46 +242,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                 ),
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      InkWell(
-                        onTap: _onNeutralClicked,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text('Neutral'),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: _onHappyClicked,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text('Happy'),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: _onSadClicked,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text('Sad'),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: _onAngryClicked,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text('Angry'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _sentDataSummary != null ? Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Text(_sentDataSummary),
-                ) : const SizedBox.shrink(),
                 _connectionStatus == ConnectionStatus.CONNECTED ? Align(
                   alignment: Alignment.bottomCenter,
                   child: GestureDetector(
@@ -304,6 +251,7 @@ class _MainScreenState extends State<MainScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
                         color: _speakPressed ? AppColors.PRIMARY : AppColors.BACKGROUND_WHITE,
                       ),
                       child: Text(
@@ -346,7 +294,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onSpeakTapDown(TapDownDetails _) {
-    print('onSpeakTapDown');
     _connection.sendSpeakStart();
     setState(() {
       _speakPressed = true;
@@ -354,7 +301,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onSpeakTapUp(TapUpDetails _) {
-    print('onSpeakTapUp');
     _connection.sendSpeakEnd();
     setState(() {
       _speakPressed = false;
@@ -544,7 +490,7 @@ class _PersonaView extends StatefulWidget {
 }
 
 class _PersonaViewState extends State<_PersonaView> {
-  final AudioCache _audioCache = AudioCache(prefix: 'audio/');
+  final AudioCache _audioCache = AudioCache();
   AudioPlayer _audioPlayer;
   StreamSubscription<AudioPlayerState> _stateSubscription;
   String _currentPlayingAudioPath;
